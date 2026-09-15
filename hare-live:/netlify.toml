@@ -1,0 +1,6 @@
+# Netlify 설정.
+# 이 파일이 있어야 netlify/functions 폴더의 함수가 배포됩니다.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"

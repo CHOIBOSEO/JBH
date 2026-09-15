@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#E9E7E2">
+<title>정반합 — 가벼운 결정</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9E7E2; --raised:#F3F1ED; --sunk:#DFDCD5; --line:#CFCBC2;
+  --ink:#1C1F26; --muted:#7A776F;
+  --th:#3E5C76; --th-w:#DFE5EA; --an:#8C6239; --an-w:#EDE3D6;
+  --graphite:#4A4F58; --sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:#DAD7D0;color:var(--ink);overscroll-behavior-y:none;
+  font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;letter-spacing:-.015em}
+.serif{font-family:'Nanum Myeongjo',ui-serif,Georgia,serif;line-height:1.8;letter-spacing:-.01em}
+#app{position:relative;max-width:420px;min-height:100vh;min-height:100dvh;margin:0 auto;
+  background:var(--paper);display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:520px){
+  body{padding:24px 0}
+  #app{min-height:min(860px,calc(100vh - 48px));height:min(860px,calc(100vh - 48px));
+    height:min(860px,calc(100dvh - 48px));border-radius:22px;border:1px solid var(--line)}
+}
+button,textarea{font-family:inherit;letter-spacing:-.015em;touch-action:manipulation}
+button{cursor:pointer;border:none;background:none;color:inherit}
+button:disabled{opacity:.32}
+button:active:not(:disabled){transform:scale(.99)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+textarea{font-family:'Nanum Myeongjo',serif;width:100%;resize:none;border:1px solid var(--line);
+  background:var(--paper);border-radius:10px;padding:12px;font-size:16px;line-height:1.8;color:var(--ink)}
+.hide{display:none!important}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px}
+.bar{flex-shrink:0;background:var(--paper);border-top:1px solid var(--line);padding:10px 16px calc(10px + var(--sb))}
+.top{flex-shrink:0;background:var(--paper);border-bottom:1px solid var(--line);padding:9px 16px}
+.cta{width:100%;min-height:52px;border-radius:12px;background:var(--ink);color:var(--paper);font-size:16px}
+.alt{width:100%;min-height:52px;border-radius:12px;border:1px solid var(--line);color:var(--ink);font-size:15px}
+.chip{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);font-size:14px;color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.card{background:var(--raised);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  transition:background .2s}
+.beam{transition:transform .4s cubic-bezier(.22,.9,.3,1)}
+.sheet{position:absolute;inset:0;z-index:40;display:flex;align-items:flex-end}
+.veil{position:absolute;inset:0;background:rgba(28,31,38,.45)}
+.panel{position:relative;width:100%;max-height:88%;overflow-y:auto;background:var(--raised);
+  border-radius:18px 18px 0 0;padding:20px 16px calc(20px + var(--sb));animation:up .26s ease}
+@keyframes up{from{transform:translateY(16px);opacity:.5}to{transform:none;opacity:1}}
+.grab{width:36px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.fade{animation:fd .22s ease}
+@keyframes fd{from{opacity:.3}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<noscript><div style="max-width:420px;margin:0 auto;padding:56px 20px;background:#E9E7E2;min-height:100vh">
+  <p style="font-family:'Nanum Myeongjo',serif;font-size:19px;line-height:1.8;margin:0">이 데모는 자바스크립트로 돕니다.</p>
+  <p style="font-size:14px;color:#7A776F;line-height:1.8;margin:14px 0 0">
+    iPhone 파일 앱에서 바로 열면 미리보기가 떠서 스크립트가 차단됩니다. Safari에서 열어야 합니다.</p>
+</div></noscript>
+
+<div id="app">
+
+<!-- ════ 0. 질문 ════ -->
+<section id="s0" class="scroll" style="padding-top:52px">
+  <p style="font-size:12px;color:var(--muted);margin:0">데모 · 가벼운 결정 · 저장되지 않습니다</p>
+  <h1 class="serif" style="font-size:25px;line-height:1.45;margin:10px 0 0">무엇을 정하지<br>못하고 계십니까?</h1>
+  <div class="card" style="margin-top:22px;padding:18px">
+    <p class="serif" style="margin:0;font-size:17px">이 후드티 살까 말까.<br>5만원인데 비슷한 거 하나 있음.</p>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px">
+    <span class="chip" style="display:inline-flex;align-items:center;min-height:32px;font-size:13px;color:var(--muted)">💸 짠돌이</span>
+    <span class="chip" style="display:inline-flex;align-items:center;min-height:32px;font-size:13px;color:var(--muted)">가볍게</span>
+  </div>
+  <p style="font-size:13px;color:var(--muted);line-height:1.8;margin:22px 0 0">
+    가벼운 질문이라 세 장을 한 화면에 펼칩니다.<br>읽고, 마음에 걸리는 쪽을 누르시면 됩니다.</p>
+</section>
+<div id="b0" class="bar">
+  <button class="cta" onclick="go()">카드 펼치기</button>
+</div>
+
+<!-- ════ 1. 로딩 ════ -->
+<section id="s1" class="scroll hide" style="padding-top:72px">
+  <p class="serif" style="font-size:17px;color:var(--muted);margin:0">이 후드티 살까 말까.</p>
+  <ol id="steps" style="list-style:none;padding:0;margin:28px 0 0"></ol>
+</section>
+
+<!-- ════ 2. 한 화면 ════ -->
+<div id="t2" class="top hide">
+  <div style="display:flex;align-items:center;gap:11px">
+    <svg viewBox="0 0 110 40" style="width:92px;height:36px;flex-shrink:0" role="img" aria-label="의사결정 저울">
+      <path d="M55 20 L55 33" stroke="var(--graphite)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M44 35 L66 35" stroke="var(--graphite)" stroke-width="2.8" stroke-linecap="round"/>
+      <g id="beam" class="beam" style="transform-origin:55px 20px">
+        <line x1="12" y1="20" x2="98" y2="20" stroke="var(--graphite)" stroke-width="2.8" stroke-linecap="round"/>
+        <circle cx="12" cy="20" r="7.5" fill="var(--th-w)" stroke="var(--th)" stroke-width="1.4"/>
+        <text x="12" y="24" text-anchor="middle" font-size="9.5" fill="var(--th)" font-family="'Nanum Myeongjo',serif">正</text>
+        <circle cx="98" cy="20" r="7.5" fill="var(--an-w)" stroke="var(--an)" stroke-width="1.4"/>
+        <text x="98" y="24" text-anchor="middle" font-size="9.5" fill="var(--an)" font-family="'Nanum Myeongjo',serif">反</text>
+      </g>
+      <circle cx="55" cy="20" r="4" fill="var(--paper)" stroke="var(--graphite)" stroke-width="2.4"/>
+    </svg>
+    <div style="min-width:0">
+      <p id="cap" style="margin:0;font-size:13px">아직 올라간 카드가 없습니다.</p>
+      <p id="capsub" style="margin:1px 0 0;font-size:11px;color:var(--muted)">3장 중 0장</p>
+    </div>
+  </div>
+</div>
+<section id="s2" class="scroll hide" style="padding-top:14px">
+  <p id="opening" class="serif" style="font-size:16px;margin:0 0 4px;color:var(--ink)"></p>
+  <p style="font-size:12px;color:var(--muted);margin:6px 0 14px">카드를 탭하면 반대쪽 얼굴이 나옵니다</p>
+  <div id="cards" style="display:flex;flex-direction:column;gap:10px"></div>
+  <div id="qbox" style="margin-top:20px"></div>
+  <p id="closing" class="serif" style="text-align:center;font-size:14px;color:var(--muted);margin:22px 0 18px"></p>
+</section>
+<div id="b2" class="bar hide">
+  <p id="gate" style="font-size:12px;color:var(--muted);margin:0 0 8px;text-align:center"></p>
+  <button id="decide" class="cta" disabled>결단하기</button>
+</div>
+
+<!-- ════ 3. 봉인 ════ -->
+<section id="s3" class="scroll hide" style="padding-top:64px">
+  <p id="lv" style="font-size:13px;color:var(--muted);margin:0"></p>
+  <blockquote id="ls" class="serif" style="margin:14px 0 0;border-left:2px solid var(--ink);padding-left:14px;font-size:18px"></blockquote>
+  <div id="ld" class="hide" style="margin-top:20px;background:var(--an-w);border-radius:12px;padding:14px;font-size:14px"></div>
+  <p id="lc" style="font-size:14px;color:var(--muted);margin-top:22px"></p>
+</section>
+<div id="b3" class="bar hide"><button class="alt" onclick="location.reload()">처음부터 다시</button></div>
+
+<div id="sheet" class="sheet hide">
+  <div class="veil" id="veil"></div>
+  <div class="panel" id="panel" role="dialog" aria-modal="true"></div>
+</div>
+</div>
+
+<script>
+window.addEventListener("error",function(e){
+  var b=document.createElement("div");
+  b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#8C6239;color:#F3F1ED;padding:14px 16px;font:13px/1.6 -apple-system,sans-serif;white-space:pre-wrap";
+  b.textContent="스크립트 오류 — "+e.message+"\n"+(e.filename||"")+" : "+(e.lineno||"");
+  document.body.appendChild(b);
+});
+
+/* ═════ 가벼운 리딩 — 카드는 3장, 본문만 짧다 ═════ */
+const R={
+ weight:"light",
+ opening:"이미 세어 보셨습니다. 비슷한 게 하나 있다고 먼저 쓰셨으니까요.",
+ closing:"길게 볼 질문은 아니었습니다.",
+ cards:[
+  {id:"c1",slot:"지금 보이는 것",name:"창고 속의 도구",
+   u:{body:"하나 있다고 해서 못 사는 건 아닙니다. 번갈아 입으면 각각이 오래갑니다.",claim:"번갈아 입는 값"},
+   r:{body:"비슷한 걸 이미 갖고 계시다면, 새것이 와도 손이 가는 건 결국 하나입니다.",
+      claim:"손이 가는 건 하나",when:"다음 주, 옷장을 열 때"}},
+  {id:"c2",slot:"안 보이는 것",name:"옆집 정원",blind:true,
+   u:{body:"마음에 든 옷을 사는 데 이유가 더 필요하지는 않습니다.",claim:"마음에 들었다는 것"},
+   r:{body:"지금 이게 갖고 싶은 건지, 그냥 뭔가 사고 싶은 건지 구분되십니까.",
+      claim:"뭔가 사고 싶은 마음",when:"오늘 밤, 결제하고 앱을 닫은 직후"}},
+  {id:"c3",slot:"나중에 드러날 것",name:"조용한 이자",
+   u:{body:"5만원은 한 번이면 작은 돈입니다. 아껴서 큰돈이 되는 종류도 아닙니다.",claim:"한 번이면 작은 돈"},
+   r:{body:"작은 지출은 기억에 안 남아서 쌓이는 줄도 모릅니다. 이번 달 몇 번째입니까.",
+      claim:"기억에 안 남는 지출",when:"이번 달 카드값이 찍히는 날"}}
+ ],
+ question:{q:"안 사면 다음 주에 다시 생각나실 것 같습니까?",why:"다시 생각나지 않을 물건이면 이미 답은 나와 있습니다."}
+};
+const TAGS=[["struck","😬","뜨끔"],["relieved","😌","안심"],["known","😐","알던 것"],["irrelevant","🙄","빗나감"]];
+const W={struck:1,relieved:.6,known:.25,irrelevant:0};
+const st=R.cards.map(c=>({id:c.id,face:"u",u:null,r:null,flips:0,seen:false}));
+let verdict=null,horizons=["1w"],stmt="",touched=false;
+const $=x=>document.getElementById(x);
+const show=(...ids)=>["s0","b0","s1","t2","s2","b2","s3","b3"].forEach(k=>$(k).classList.toggle("hide",!ids.includes(k)));
+
+/* ═════ 로딩 — 가벼운 질문이니 짧다 ═════ */
+const STEPS=["질문을 정리하는 중","덱에서 세 장을 뽑는 중","두 얼굴을 쓰는 중"];
+function go(){
+  show("s1");
+  $("steps").innerHTML=STEPS.map(s=>`<li style="display:flex;align-items:center;gap:11px;margin-bottom:13px">
+    <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--line);flex-shrink:0"></span>
+    <span class="lbl" style="font-size:14px;color:var(--line)">${s}</span></li>`).join("");
+  let k=0;const mark=()=>{
+    document.querySelectorAll(".dot").forEach((d,n)=>d.style.background=n<=k?"var(--ink)":"var(--line)");
+    document.querySelectorAll(".lbl").forEach((l,n)=>l.style.color=n===k?"var(--ink)":n<k?"var(--muted)":"var(--line)")};
+  mark();const t=setInterval(()=>{k++;if(k>=STEPS.length){clearInterval(t);open3();return}mark()},600);
+}
+
+function open3(){
+  show("t2","s2","b2");
+  $("opening").textContent=R.opening;
+  $("closing").textContent=R.closing;
+  $("qbox").innerHTML=`<div class="card" style="padding:15px">
+    <p class="serif" style="margin:0;font-size:16px">${R.question.q}</p>
+    <p style="margin:6px 0 0;font-size:12px;color:var(--muted)">${R.question.why}</p>
+    <textarea rows="2" placeholder="비워두셔도 됩니다" style="margin-top:10px"></textarea></div>`;
+  render();
+}
+
+/* ═════ 한 화면 — 3장이 세로로 쌓인다 ═════ */
+function render(){
+  tilt();
+  $("cards").innerHTML="";
+  R.cards.forEach((c,n)=>{
+    const s=st[n],up=s.face==="u",t=up?"th":"an",d=up?c.u:c.r;
+    const weighed=s[s.face]&&s[s.face]!=="irrelevant";
+    const el=document.createElement("article");
+    el.className="card";
+    el.style.background=weighed?`var(--${t}-w)`:"var(--raised)";
+    el.innerHTML=`
+      <button data-flip="${n}" style="width:100%;text-align:left;padding:14px 15px 12px">
+        <span style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <span style="min-width:0">
+            <span style="display:block;font-size:11px;color:var(--${t})">${c.slot}</span>
+            <span class="serif" style="display:block;font-size:17px;color:var(--${t})">${c.name}</span></span>
+          <span style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            ${dot(s,"u")}${dot(s,"r")}
+            <span class="serif" style="font-size:15px;color:var(--${t});margin-left:2px">${up?"正":"反"}</span></span>
+        </span>
+        <span class="serif fade" style="display:block;margin-top:9px;font-size:15px;color:var(--ink)">${d.body}</span>
+        ${d.when?`<span style="display:block;margin-top:7px;font-size:12px;color:var(--muted)">${d.when}</span>`:""}
+      </button>
+      <div style="display:flex;gap:5px;padding:0 15px 14px">
+        ${TAGS.map(([k,ic,lb])=>{
+          const on=s[s.face]===k;
+          return `<button data-rx="${n}|${k}" aria-label="${lb}" title="${lb}" style="flex:1;min-height:42px;border-radius:10px;
+            border:1px solid ${on?`var(--${t})`:"var(--line)"};background:${on?`var(--${t})`:"transparent"};
+            font-size:17px">${ic}</button>`}).join("")}
+      </div>`;
+    $("cards").appendChild(el);
+  });
+  $("cards").querySelectorAll("[data-flip]").forEach(b=>b.onclick=()=>{
+    const n=+b.dataset.flip,s=st[n];
+    if(s.face==="u")s.seen=true;
+    s.face=s.face==="u"?"r":"u";render()});
+  $("cards").querySelectorAll("[data-rx]").forEach(b=>b.onclick=()=>{
+    const [n,k]=b.dataset.rx.split("|"),s=st[n];
+    if(s[s.face]!==k)s.flips++;
+    s[s.face]=s[s.face]===k?null:k;
+    if(!touched)stmt="";render()});
+
+  const done=st.filter(s=>s.u||s.r).length;
+  const unseen=st.filter(s=>!s.seen).length;
+  $("gate").textContent=unseen?`아직 뒤집지 않은 카드 ${unseen}장`:(done<2?"두 장 이상에 반응을 남겨주세요":"");
+  $("decide").disabled=unseen>0||done<2;
+}
+function dot(s,f){
+  const on=s[f]&&s[f]!=="irrelevant";
+  const c=f==="u"?"var(--th)":"var(--an)";
+  return `<span style="width:6px;height:6px;border-radius:50%;background:${on?c:"var(--line)"}"></span>`;
+}
+
+function tilt(){
+  let up=0,rv=0,n=0;
+  st.forEach(s=>{const d=1-Math.min(s.flips,5)/5*.3;
+    const a=s.u?W[s.u]*d:0,b=s.r?W[s.r]*d:0;if(a||b){up+=a;rv+=b;n++}});
+  const t=up+rv,v=t?(up-rv)/t:0,m=Math.abs(v),side=v>0?"정(正)":"반(反)";
+  $("beam").style.transform=`rotate(${(v*16).toFixed(1)}deg)`;
+  $("cap").textContent=!n?"아직 올라간 카드가 없습니다."
+    :m<.12?"양쪽이 거의 같습니다.":m<.4?`${side} 쪽으로 조금 기울었습니다.`
+    :m<.75?`${side} 쪽으로 기울었습니다.`:`${side} 쪽으로 많이 기울었습니다.`;
+  $("capsub").textContent=`3장 중 ${n}장`;
+}
+
+/* ═════ 결단 — 가벼운 질문에는 Plan B 가 없다 ═════ */
+const RANK={struck:3,relieved:2,known:1};
+function draft(){
+  const best=st.filter(s=>s.u&&s.u!=="irrelevant").sort((a,b)=>RANK[b.u]-RANK[a.u])[0];
+  const worst=st.filter(s=>s.r&&s.r!=="irrelevant").sort((a,b)=>RANK[b.r]-RANK[a.r])[0];
+  const pro=best?R.cards.find(c=>c.id===best.id).u.claim:"";
+  const con=worst?R.cards.find(c=>c.id===worst.id).r.claim:"";
+  // light 전용 템플릿. "감수하고 실행한다"는 5만원짜리 결정에 장엄하다.
+  if(verdict==="go")   return [pro?`${pro}, 그걸로 산다.`:"산다.",con?`${con}은 감수한다.`:""].filter(Boolean).join(" ");
+  if(verdict==="pivot")return [con?`${con}이 걸린다.`:"조금 걸린다.",pro?`${pro}이 남으면 그때 산다.`:"며칠 두고 본다."].filter(Boolean).join(" ");
+  return [con?`${con}, 그래서 안 산다.`:"안 산다.",pro?`${pro}은 다음으로 미룬다.`:""].filter(Boolean).join(" ");
+}
+const VL={go:"산다",pivot:"미뤄둔다",drop:"안 산다"};
+const HL={"1d":"내일","1w":"다음 주"};
+
+$("decide").onclick=()=>{
+  const V=[["go","산다","지금 결제한다"],["pivot","미뤄둔다","며칠 두고 본다"],["drop","안 산다","이번엔 넘긴다"]];
+  $("panel").innerHTML=`<div class="grab"></div>
+    <h2 style="font-size:16px;font-weight:500;margin:0">어떻게 하시겠습니까?</h2>
+    <div id="vd" style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      ${V.map(([k,l,n])=>`<button class="chip" data-v="${k}" style="min-height:48px;border-radius:12px;text-align:left;padding:10px 14px">
+        ${l} <span style="font-size:12px;opacity:.7">· ${n}</span></button>`).join("")}</div>
+    <div id="more" class="hide">
+      <h2 style="font-size:15px;font-weight:500;margin:20px 0 8px">내 결단문</h2>
+      <textarea id="st" rows="3" style="font-size:16px"></textarea>
+      <h2 style="font-size:15px;font-weight:500;margin:18px 0 8px">언제 다시 물어볼까요?</h2>
+      <div id="hz" style="display:flex;gap:8px"></div>
+    </div>
+    <button id="lock" class="cta" style="margin-top:20px" disabled>이걸로 정한다</button>`;
+  $("sheet").classList.remove("hide");
+  $("veil").onclick=()=>$("sheet").classList.add("hide");
+
+  const sync=()=>{
+    $("vd").querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===verdict));
+    $("more").classList.toggle("hide",!verdict);
+    if(verdict&&!touched){stmt=draft();$("st").value=stmt}
+    $("hz").innerHTML=Object.entries(HL).map(([k,l])=>
+      `<button class="chip ${horizons.includes(k)?"on":""}" data-h="${k}" style="flex:1;min-height:44px">${l}</button>`).join("");
+    $("hz").querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{const h=b.dataset.h;
+      horizons=horizons.includes(h)?horizons.filter(x=>x!==h):[...horizons,h];sync()});
+    $("lock").disabled=!verdict||!horizons.length||!$("st").value.trim();
+  };
+  $("vd").querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{verdict=b.dataset.v;sync()});
+  $("panel").addEventListener("input",e=>{if(e.target.id==="st"){touched=true;stmt=e.target.value;sync()}});
+  $("lock").onclick=()=>{
+    $("sheet").classList.add("hide");show("s3","b3");
+    $("lv").textContent=VL[verdict];$("ls").textContent=stmt;
+    if(verdict==="drop"){$("ld").classList.remove("hide");
+      $("ld").textContent="안 사기로 한 것도 결정입니다. 기록으로 남습니다."}
+    $("lc").textContent=`${horizons.map(h=>HL[h]).join(" · ")}에 이 문장을 다시 보여드리겠습니다.`;
+  };
+  sync();
+};
+</script>
+</body>
+</html>
