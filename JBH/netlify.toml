@@ -1,0 +1,12 @@
+# Netlify 설정
+#
+# publish 를 public 으로 분리했습니다.
+# 함수 폴더가 게시 폴더 안에 있으면 함수 코드가 웹에 그대로 노출될 수 있습니다.
+
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+  command = ""
+
+[functions]
+  node_bundler = "esbuild"
