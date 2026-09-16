@@ -4,7 +4,16 @@
 // API 키는 Netlify 환경변수에만 있고 방문자에게 나가지 않는다.
 // 참여 코드로 아무나 못 쓰게 막고, 하루 호출 수에 상한을 둔다.
 
-const MODEL = "claude-sonnet-4-6";
+// Netlify 무료 플랜의 동기 함수는 10초에서 끊긴다.
+// 카드 생성은 8~20초가 걸려서 "가끔" 실패한다 — 한도를 넘는 순간 Netlify 가 HTML 504 를 준다.
+//
+// 대응 셋:
+//  1) 출력 토큰을 줄여 생성 시간을 줄인다 (출력 길이가 지연의 대부분이다)
+//  2) 9초에 스스로 끊고 JSON 으로 안내한다. HTML 504 보다 낫다
+//  3) 더 빠른 모델로 바꿀 수 있게 환경변수로 뺀다
+const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
+const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 1800);
+const ABORT_MS = Number(process.env.ABORT_MS ?? 9000);
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT ?? 200);
 
 // 함수 인스턴스가 살아 있는 동안만 유지된다. 정확한 집계가 아니라 폭주 방지용이다.
@@ -177,12 +186,23 @@ export default async (req) => {
     return json(500, { error: "no_key", detail: "서버에 ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." });
   }
   // 값 자체는 절대 내보내지 않는다. 앞 12자와 길이만으로 어느 키인지 대조할 수 있다.
-  const keyHint = `${apiKey.slice(0, 12)}… (길이 ${apiKey.length}자)`;
+  // 어느 사이트에서 도는 함수인지도 함께 알려준다.
+  // 프로젝트가 여러 개면 엉뚱한 쪽의 환경변수를 고치고 있을 수 있다.
+  const site = process.env.SITE_NAME || process.env.URL || "(사이트 이름 없음)";
+  const keyHint =
+    `${apiKey.slice(0, 12)}… (길이 ${apiKey.length}자) · 사이트: ${site}`;
 
   count += 1;
   const started = Date.now();
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  // 우리가 먼저 끊어야 Netlify 의 HTML 504 대신 우리 JSON 이 나간다.
+  const ac = new AbortController();
+  const killer = setTimeout(() => ac.abort(), ABORT_MS);
+
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+    signal: ac.signal,
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -190,7 +210,7 @@ export default async (req) => {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: MODEL, max_tokens: 3000, temperature: 0.7, system: SYSTEM,
+      model: MODEL, max_tokens: MAX_TOKENS, temperature: 0.7, system: SYSTEM,
       // 이 모델은 assistant prefill 을 지원하지 않는다. 대화는 user 메시지로 끝나야 한다.
       messages: [
         { role: "user", content:
@@ -199,6 +219,18 @@ export default async (req) => {
       ],
     }),
   });
+  } catch (e) {
+    clearTimeout(killer);
+    if (e?.name === "AbortError") {
+      return json(504, {
+        error: "timeout",
+        detail: "생성이 제한 시간을 넘었습니다.",
+        hint: "질문을 조금 짧게 줄여 다시 시도해 보십시오. 대개 두 번째 시도에서 됩니다.",
+      });
+    }
+    return json(502, { error: "network", detail: String(e?.message ?? e).slice(0, 200) });
+  }
+  clearTimeout(killer);
 
   if (!res.ok) {
     const t = await res.text();
