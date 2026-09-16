@@ -170,9 +170,14 @@ export default async (req) => {
   const lens = ["balanced", "business", "frugal", "growth"].includes(body.lens) ? body.lens : "balanced";
   if (question.length < 5) return json(422, { error: "too_short", detail: "고민을 조금 더 적어 주세요." });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  // 환경변수에 공백·줄바꿈·따옴표가 섞여 들어오는 일이 잦다. 털어내고 쓴다.
+  const apiKey = String(process.env.ANTHROPIC_API_KEY || "")
+    .replace(/[\s\u200b-\u200d\ufeff]/g, "").replace(/^["']|["']$/g, "");
+  if (!apiKey) {
     return json(500, { error: "no_key", detail: "서버에 ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." });
   }
+  // 값 자체는 절대 내보내지 않는다. 앞 12자와 길이만으로 어느 키인지 대조할 수 있다.
+  const keyHint = `${apiKey.slice(0, 12)}… (길이 ${apiKey.length}자)`;
 
   count += 1;
   const started = Date.now();
@@ -181,32 +186,40 @@ export default async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model: MODEL, max_tokens: 3000, temperature: 0.7, system: SYSTEM,
+      // 이 모델은 assistant prefill 을 지원하지 않는다. 대화는 user 메시지로 끝나야 한다.
       messages: [
         { role: "user", content:
-          `USER_QUESTION: ${question}\nLENS: ${lens}\nUSER_CONTEXT: ${String(body.context ?? "").slice(0,500) || "없음"}\nRECENT_BANNED_IDS: []` },
-        { role: "assistant", content: "{" },
+          `USER_QUESTION: ${question}\nLENS: ${lens}\nUSER_CONTEXT: ${String(body.context ?? "").slice(0,500) || "없음"}\nRECENT_BANNED_IDS: []\n\n`
+          + `위 입력에 대해 JSON 객체 하나만 출력하십시오. 코드펜스, 설명, 인사말을 붙이지 마십시오. 첫 글자는 { 이고 마지막 글자는 } 입니다.` },
       ],
     }),
   });
 
   if (!res.ok) {
     const t = await res.text();
-    return json(502, { error: "api_error", detail: `API ${res.status} — ${t.slice(0, 200)}` });
+    // 401 이면 어느 키를 쓰고 있는지 힌트를 함께 돌려준다.
+    // 단독 파일에서 쓰는 키와 앞 12자·길이가 같은지 대조하면 원인이 바로 갈린다.
+    const hint = res.status === 401
+      ? `서버가 쓰고 있는 키: ${keyHint} — 이 값이 실제로 쓰시는 키와 같은지 확인하십시오.`
+      : null;
+    return json(502, { error: "api_error", detail: `API ${res.status} — ${t.slice(0, 200)}`, hint });
   }
 
   const data = await res.json();
   const raw = (data.content || []).map(b => b.type === "text" ? b.text : "").join("");
 
+  // 코드펜스가 붙어 나오는 경우가 있어 먼저 걷어낸다.
+  const bodyText = raw.replace(/^\s*```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   let j = null;
-  for (const c of ["{" + raw, raw]) { try { j = JSON.parse(c); break; } catch {} }
+  for (const c of [bodyText, raw]) { try { j = JSON.parse(c); break; } catch {} }
   if (!j) {
-    const s = ("{" + raw).indexOf("{"), e = ("{" + raw).lastIndexOf("}");
-    if (s >= 0 && e > s) { try { j = JSON.parse(("{" + raw).slice(s, e + 1)); } catch {} }
+    const s = bodyText.indexOf("{"), e = bodyText.lastIndexOf("}");
+    if (s >= 0 && e > s) { try { j = JSON.parse(bodyText.slice(s, e + 1)); } catch {} }
   }
   if (!j) return json(502, { error: "parse_failed", detail: "응답을 읽지 못했습니다. 다시 시도해 주세요." });
 
